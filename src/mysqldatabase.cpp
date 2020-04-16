@@ -1,6 +1,7 @@
 #include "mysqldatabase.h"
 #include <cstdint>
 #include "GarrysMod/Lua/Interface.h"
+#include "mysqlquery.h"
 
 #ifdef _WIN32
 #include <WinSock2.h>
@@ -8,41 +9,35 @@
 #include <poll.h>
 #endif
 
-LUA_FUNCTION(mysqldatabase__gc) {
-	auto db = LUA->GetUserType<gmodmysql::MySQLDatabase::UserData>(1, gmodmysql::UserDatas::Database);
-	delete db;
+#include "luauserdata.h"
 
-	return 0;
+MYSQL_GENERIC_META_FUNCTIONS(MySQLDatabase);
+
+LUA_FUNCTION(mysqldatabase__query) {
+	auto db = gluamysql::MySQLDatabase::FromUserData(LUA, 1);
+
+	LUA->CheckString(2);
+	unsigned int outlen;
+	const char *str = LUA->GetString(2, &outlen);
+	auto query = new gluamysql::MySQLQuery::Instance(LUA, *db, str, outlen);
+	db->InsertAction(LUA, query);
+
+	gluamysql::MySQLQuery::PushUserData(LUA, query);
+	return 1;
 }
 
-gmodmysql::library gmodmysql::mysqldatabase = {
-	{ "__gc", mysqldatabase__gc },
+gluamysql::library gluamysql::MySQLDatabase::Library = {
+	{ "__gc", MySQLDatabase__gc },
+	{ "__index", MySQLDatabase__index },
+	{ "__newindex", MySQLDatabase__newindex },
+	{ "query", mysqldatabase__query },
 	{ nullptr, nullptr }
 }; 
 
-void gmodmysql::MySQLDatabase::PushUserData(GarrysMod::Lua::ILuaBase *LUA, gmodmysql::MySQLDatabase::Instance db) {
-	gmodmysql::GetTableCache(LUA, "MySQLDatabase");
+MYSQL_LUA_ACCESSORS(MySQLDatabase, true);
 
-	auto ptr = reinterpret_cast<std::uintptr_t>(db.get());
+int GetStatus(gluamysql::IAction* item, gluamysql::MySQLDatabase::Instance db, int waiting_state) {
 
-	LUA->PushNumber(ptr); // +2
-	LUA->GetTable(-2); // +2
-
-	if (LUA->IsType(-1, GarrysMod::Lua::Type::Nil)) {
-		LUA->Pop(1); // +1
-		LUA->PushUserType(new Instance(db), gmodmysql::UserDatas::Database); // +2
-		LUA->PushNumber(ptr); // +3 
-		LUA->Push(-2); // +4
-
-		LUA->SetTable(-4); // +2
-	}
-
-	// +2
-
-	LUA->Remove(LUA->Top() - 1); // +1
-}
-
-int gmodmysql::MySQLDatabase::CheckStatus(gmodmysql::IAction *item, gmodmysql::MySQLDatabase::Instance db, int waiting_state) {
 #ifdef _WIN32
 	fd_set rs, ws, es;
 	int res;
@@ -77,7 +72,7 @@ int gmodmysql::MySQLDatabase::CheckStatus(gmodmysql::IAction *item, gmodmysql::M
 		if (FD_ISSET(s, &es))
 			status |= MYSQL_WAIT_EXCEPT;
 		return status;
-}
+	}
 #else
 	struct pollfd pfd;
 	int timeout;
@@ -113,15 +108,28 @@ int gmodmysql::MySQLDatabase::CheckStatus(gmodmysql::IAction *item, gmodmysql::M
 #endif
 }
 
-int gmodmysql::MySQLDatabase::GetSocketStatus() {
+bool gluamysql::MySQLDatabase::CheckStatus(gluamysql::IAction* item, gluamysql::MySQLDatabase::Instance db, int waiting_state) {
+	return waiting_state == 0 || (waiting_state & GetStatus(item, db, waiting_state)) != 0;
+}
+
+
+int gluamysql::MySQLDatabase::GetSocketStatus() {
 #ifndef _WIN32
 	return 0;
 #else
 	return WSAGetLastError();
 #endif
 }
-std::map<gmodmysql::MySQLDatabase::Instance, std::deque<gmodmysql::IAction *>> gmodmysql::MySQLDatabase::action_map;
+std::map<gluamysql::MySQLDatabase::Instance, gluamysql::MySQLDatabase::action_pair> gluamysql::MySQLDatabase::action_map;
 
-void gmodmysql::MySQLDatabase::Instance::InsertAction(IAction* action) {
-	action_map[*this].push_back(action);
+void gluamysql::MySQLDatabase::Instance::InsertAction(GarrysMod::Lua::ILuaBase *LUA, IAction* action) {
+	int& reference = action_map[*this].reference;
+	std::deque<gluamysql::IAction*>& list = action_map[*this].actions;
+	
+	if (reference == 0) {
+		gluamysql::MySQLDatabase::PushUserData(LUA, this);
+		reference = LUA->ReferenceCreate();
+	}
+
+	list.push_back(action);
 }

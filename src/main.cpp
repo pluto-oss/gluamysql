@@ -1,11 +1,12 @@
 #include "GarrysMod/Lua/Interface.h"
-#include "gmodmysql.h"
+#include "gluamysql.h"
 #include "mysql.h"
 #include "mysqldatabase.h"
+#include "mysqlquery.h"
 
-int gmodmysql::UserDatas::Database = 0;
+int gluamysql::UserDatas::MySQLDatabase = 0;
 
-static void populate_table(GarrysMod::Lua::ILuaBase *LUA, gmodmysql::library lib) {
+static void populate_table(GarrysMod::Lua::ILuaBase *LUA, gluamysql::library lib) {
 	for (; lib->name != nullptr; lib++) {
 		LUA->PushCFunction(lib->fn);
 		LUA->SetField(-2, lib->name);
@@ -13,10 +14,14 @@ static void populate_table(GarrysMod::Lua::ILuaBase *LUA, gmodmysql::library lib
 }
 
 LUA_FUNCTION(DatabaseThunk) {
-	auto it = gmodmysql::MySQLDatabase::action_map.cbegin();
-	while (it != gmodmysql::MySQLDatabase::action_map.cend()) {
+	for (
+		auto it = gluamysql::MySQLDatabase::action_map.begin();
+		it != gluamysql::MySQLDatabase::action_map.end();
+		it++
+	) {
 		auto &db = it->first;
-		auto actions = it->second;
+		auto reference = it->second.reference;
+		auto &actions = it->second.actions;
 
 		while (actions.size() > 0) {
 			auto& action = actions[0];
@@ -29,31 +34,35 @@ LUA_FUNCTION(DatabaseThunk) {
 		}
 
 		if (actions.size() == 0) {
-			it = gmodmysql::MySQLDatabase::action_map.erase(it);
+			it = gluamysql::MySQLDatabase::action_map.erase(it);
+			if (reference != 0)
+				LUA->ReferenceFree(reference);
 		}
 	}
 
 	return 0;
 }
 
+#define CREATE_METATABLE(name) \
+	gluamysql::UserDatas:: name = LUA->CreateMetaTable(#name);\
+	populate_table(LUA, gluamysql:: name ::Library);\
+	LUA->Pop(1)
+
 GMOD_MODULE_OPEN() {
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->CreateTable();
-	populate_table(LUA, gmodmysql::mysqllibrary);
+	populate_table(LUA, gluamysql::mysqllibrary);
 	LUA->SetField(-2, "mysql");
 	LUA->Pop(1);
 
-	gmodmysql::UserDatas::Database = LUA->CreateMetaTable("MySQLDatabase");
-	populate_table(LUA, gmodmysql::mysqldatabase);
-	LUA->Push(-1);
-	LUA->SetField(-2, "__index");
-	LUA->Pop(1);
+	CREATE_METATABLE(MySQLDatabase);
+	CREATE_METATABLE(MySQLQuery);
 
 	LUA->PushSpecial(GarrysMod::Lua::SPECIAL_GLOB);
 	LUA->GetField(-1, "hook");
 	LUA->GetField(-1, "Add");
 	LUA->PushString("Tick");
-	LUA->PushString("gmodmysql::Thunk");
+	LUA->PushString("gluamysql::Thunk");
 	LUA->PushCFunction(DatabaseThunk);
 	LUA->Call(3, 0);
 

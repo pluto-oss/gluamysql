@@ -1,11 +1,11 @@
 #pragma once
 
-#include "nonblocking.h"
-#include "gmodmysql.h"
+#include "action.h"
+#include "gluamysql.h"
 #include "mysqldatabase.h"
 #include "mysql.h"
 
-namespace gmodmysql {
+namespace gluamysql {
 	class MySQLConnect : public IAction {
 	public:
 		MySQLConnect(MySQLDatabase::Instance _db, const char* _host, const char* _user, const char* _passwd,
@@ -16,15 +16,17 @@ namespace gmodmysql {
 			clientflag(_clientflag), last_status(0)
 		{ }
 
+		~MySQLConnect() { }
+
 		bool Start() override {
 			last_status = mysql_real_connect_start(&ret, db.get(), host, user, passwd, dbname, port, unix_socket, clientflag);
 			return last_status == 0;
 		}
 
 		bool Poll() override {
-			int ready = MySQLDatabase::CheckStatus(this, db, last_status);
-			if ((ready & last_status) == 0)
+			if (!MySQLDatabase::CheckStatus(this, db, last_status))
 				return false;
+
 			last_status = mysql_real_connect_cont(&ret, db.get(), last_status);
 
 			return last_status == 0;
@@ -33,9 +35,9 @@ namespace gmodmysql {
 		bool Finish(GarrysMod::Lua::ILuaBase* LUA) override {
 			// check status
 
-			gmodmysql::PushHookRun(LUA);
+			gluamysql::PushHookRun(LUA);
 			LUA->PushString("MySQLConnection");
-			gmodmysql::MySQLDatabase::PushUserData(LUA, db);
+			gluamysql::MySQLDatabase::PushUserData(LUA, &db);
 
 			int args = 2;
 

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "GarrysMod/Lua/LuaBase.h"
-#include "gmodmysql.h"
+#include "gluamysql.h"
 #include <memory>
 #include <deque>
 #include <map>
 
-namespace gmodmysql {
+namespace gluamysql {
 	namespace UserDatas {
-		extern int Database;
+		extern int MySQLDatabase;
 	}
 
 	namespace MySQLDatabase {
@@ -17,18 +17,20 @@ namespace gmodmysql {
 		public:
 			using std::shared_ptr<MYSQL>::shared_ptr;
 
-			void InsertAction(IAction* action);
+			void InsertAction(GarrysMod::Lua::ILuaBase* LUA, IAction* action);
 		};
 
-		extern std::map<Instance, std::deque<IAction*>> action_map;
+		struct action_pair {
+			std::deque<IAction*> actions;
+			int reference;
+		};
+		extern std::map<Instance, action_pair> action_map;
 
-		using UserData = Instance *;
-			
-		extern void PushUserData(GarrysMod::Lua::ILuaBase* LUA, Instance db);
-		extern int CheckStatus(IAction *item, Instance db, int waiting_state);
+		extern void PushUserData(GarrysMod::Lua::ILuaBase* LUA, Instance *db);
+		extern Instance *FromUserData(GarrysMod::Lua::ILuaBase* LUA, int place);
+		extern bool CheckStatus(IAction *item, Instance db, int waiting_state);
 		extern int GetSocketStatus();
+
+		extern library Library;
 	}
-
-
-	extern library mysqldatabase;
 }

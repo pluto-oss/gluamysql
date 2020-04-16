@@ -3,7 +3,7 @@
 #include "mysql.h"
 #include "GarrysMod/Lua/LuaBase.h"
 
-namespace gmodmysql {
+namespace gluamysql {
 	class IAction {
 	public:
 		bool TryFinish(GarrysMod::Lua::ILuaBase *LUA) {
@@ -21,6 +21,8 @@ namespace gmodmysql {
 
 			return false;
 		}
+
+		virtual ~IAction() { };
 
 		// currently ran in lua thread but not guaranteed
 		virtual bool Start() = 0;
