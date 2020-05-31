@@ -17,3 +17,6 @@ All in all this will likely be useful for developers to make a wrapper that suit
 
 
 #### `gluamysql.connect(host, user, password, db, port)` -> `Promise<gluamysql::Database>`
+
+#### `gluamysql::Database`:`query` -> `Promise<table>`
+Returned table has tables pertaining to how many rows were returned from the query. Data in each row have key as the field name and data in the value.

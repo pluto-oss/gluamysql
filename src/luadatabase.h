@@ -14,8 +14,6 @@ namespace gluamysql {
 	template <>
 	class LuaUserData<LuaDatabase> {
 	public:
-		// LuaUserData
-
 		static LuaDatabase* GetLuaUserData(lua_State* L, int index);
 		static void PushLuaUserData(lua_State* L, LuaDatabase* what);
 	};
@@ -73,37 +71,6 @@ namespace gluamysql {
 		}
 
 		static int Tick(lua_State* L);
-
-		static int IsValid(lua_State* L) {
-			auto db = Get(L, 1);
-			lua_pushboolean(L, !!db);
-			return 1;
-		}
-
-		static int __gc(lua_State* L) {
-			auto db = Get(L, 1);
-			if (!db) {
-				return 0;
-			}
-
-			delete db;
-
-			*(LuaDatabase **)lua_touserdata(L, 1) = nullptr;
-
-			return 0;
-		}
-
-		static int __tostring(lua_State* L) {
-			auto db = Get(L, 1);
-			if (!db) {
-				lua_pushfstring(L, "[NULL] %s", MetaName);
-			}
-			else {
-				lua_pushfstring(L, "%s: %p", MetaName, db);
-			}
-
-			return 1;
-		}
 
 		static const _library library[];
 

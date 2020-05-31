@@ -1,6 +1,6 @@
 #pragma once
 #include "lua.hpp"
-
+#include "luauserdata.h"
 
 namespace gluamysql {
 	class LuaPromise {
@@ -19,15 +19,15 @@ namespace gluamysql {
 			luaL_unref(L, LUA_REGISTRYINDEX, resolve);
 		}
 
-		void PushResolve(lua_State* L) {
+		virtual void PushResolve(lua_State* L) {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, resolve);
 		}
 
-		void PushReject(lua_State* L) {
+		virtual void PushReject(lua_State* L) {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, reject);
 		}
 
-		void Push(lua_State* L) {
+		virtual void Push(lua_State* L) {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, promise);
 		}
 
@@ -42,6 +42,17 @@ namespace gluamysql {
 			lua_pushvalue(L, 2);
 			promise->reject = luaL_ref(L, LUA_REGISTRYINDEX);
 			return 0;
+		}
+	};
+
+	template <>
+	class LuaUserData<LuaPromise> {
+	public:
+		static LuaPromise* GetLuaUserData(lua_State* L, int index) {
+			return *(LuaPromise * *)lua_touserdata(L, index);
+		}
+		static void PushLuaUserData(lua_State* L, LuaPromise* what) {
+			*(decltype(what)*)lua_newuserdata(L, sizeof(what)) = what;
 		}
 	};
 }

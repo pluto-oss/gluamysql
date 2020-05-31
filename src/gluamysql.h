@@ -49,6 +49,4 @@ namespace gluamysql {
 	static void PushUserdata(T *what, void (*push)(lua_State*, T what)) {
 
 	}
-
-	int create(lua_State* L);
 }

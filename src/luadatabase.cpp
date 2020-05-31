@@ -95,7 +95,7 @@ int LuaDatabase::Tick(lua_State* L) {
 	while (db->current_action != nullptr) {
 		auto& action = db->current_action;
 		if (action->Query(L, db)) {
-			action->Finish(L, db);
+			action->DoFinish(L, db);
 			action->Free(L);
 			db->current_action = nullptr;
 			
