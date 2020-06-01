@@ -47,14 +47,13 @@ namespace gluamysql {
 		using Action = std::tuple<StartAction, ContinueAction, FinishAction>;
 
 		bool Query(lua_State* L, LuaDatabase* db) override {
-			int state_needed = db->socket_state;
-			db->socket_state = db->GetSocketStatus();
 			if (!started) {
 				started = true;
+				db->socket_state = db->GetSocketStatus();
 				db->socket_state = std::get<0>(current_action)(this, L, db);
 			}
-			
-			if ((state_needed & db->socket_state) != 0) {
+			else if (db->CheckStatus()) {
+				db->socket_state = db->GetSocketStatus();
 				db->socket_state = std::get<1>(current_action)(this, L, db);
 			}
 
@@ -67,38 +66,29 @@ namespace gluamysql {
 		}
 
 		static int StartQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_query_start(&action->out, db->instance, action->query.c_str());
+			return mysql_real_query_start(&action->out, db->instance, action->query.c_str(), action->query.length());
 		}
 		static int ContinueQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_query_cont(&action->out, db->instance, db->socket_state);
+			return mysql_real_query_cont(&action->out, db->instance, db->socket_state);
 		}
 		static bool FinishQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
-			if (action->out == 0) {
-				action->current_action = std::make_tuple(StartStore, ContinueStore, FinishStore);
-				return false;
-			}
-			action->Reject(L, db);
-			return true;
-		}
-
-		static int StartStore(QueryAction *action, lua_State* L, LuaDatabase* db) {
-			return mysql_store_result_start(&action->results, db->instance);
-		}
-		static int ContinueStore(QueryAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_store_result_cont(&action->results, db->instance, db->socket_state);
-		}
-		static bool FinishStore(QueryAction* action, lua_State *L, LuaDatabase *db) {
 			if (mysql_errno(db->instance) != 0) {
 				action->Reject(L, db);
 				return true;
 			}
 
-			// no results from query
-			if (!action->results)
-				return true;
+			if (action->out == 0) {
+				action->results = mysql_use_result(db->instance);
 
-			action->current_action = std::make_tuple(StartFetch, ContinueFetch, FinishFetch);
-			return false;
+				if (!action->results) {
+					return true;
+				}
+
+				action->current_action = std::make_tuple(StartFetch, ContinueFetch, FinishFetch);
+				return false;
+			}
+			action->Reject(L, db);
+			return true;
 		}
 
 		static int StartFetch(QueryAction* action, lua_State* L, LuaDatabase* db) {
@@ -166,7 +156,7 @@ namespace gluamysql {
 		}
 
 	public:
-		bool started;
+		bool started = false;
 		Action current_action;
 		bool has_finished = false;
 

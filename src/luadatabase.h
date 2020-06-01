@@ -88,9 +88,16 @@ namespace gluamysql {
 		}
 
 		int GetSocketStatus();
-		bool CheckStatus(LuaDatabase* db) {
-			int waiting_state = db->socket_state;
-			return waiting_state == 0 || (waiting_state & GetSocketStatus()) != 0;
+		__declspec(noinline) bool CheckStatus() {
+			int waiting_state = socket_state;
+			int wstate0 = waiting_state & (MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
+			int wstate1 = waiting_state & MYSQL_WAIT_EXCEPT;
+
+			int current_state = GetSocketStatus();
+			int cstate0 = current_state & (MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
+			int cstate1 = current_state & MYSQL_WAIT_EXCEPT;
+
+			return waiting_state == 0 || wstate0 == cstate0 && wstate0 != 0 || wstate1 == cstate1 && wstate1 != 0;
 		}
 
 		void InsertAction(std::shared_ptr<LuaAction> action) {

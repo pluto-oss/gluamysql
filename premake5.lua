@@ -16,7 +16,6 @@ workspace "gluamysql"
 
 		symbols "On"
 		vectorextensions "SSE"
-		optimize "On"
 
 		staticruntime "on"
 		kind "SharedLib"
@@ -65,3 +64,9 @@ workspace "gluamysql"
 
 		filter "configurations:*32"
 			libdirs "lib"
+
+		filter "configurations:Debug*"
+			optimize "Debug"
+
+		filter "configurations:Release*"
+			optimize "On"

@@ -4,6 +4,9 @@
 #include "mysql.h"
 #ifdef _WIN32
 #include <WinSock2.h>
+#define poll WSAPoll
+#undef POLLPRI
+#define POLLPRI POLLRDBAND
 #else
 #include <poll.h>
 #endif
@@ -12,75 +15,31 @@ using namespace gluamysql;
 
 
 int gluamysql::LuaDatabase::GetSocketStatus() {
-	int waiting_state = this->socket_state;
-#ifdef _WIN32
-	fd_set rs, ws, es;
-	int res;
-	my_socket s = mysql_get_socket(this->instance);
-	FD_ZERO(&rs);
-	FD_ZERO(&ws);
-	FD_ZERO(&es);
-	if (waiting_state & MYSQL_WAIT_READ)
-		FD_SET(s, &rs);
-	if (waiting_state & MYSQL_WAIT_WRITE)
-		FD_SET(s, &ws);
-	if (waiting_state & MYSQL_WAIT_EXCEPT)
-		FD_SET(s, &es);
-
-	res = select(1, &rs, &ws, &es, 0);
-	if (res == 0)
-		return MYSQL_WAIT_TIMEOUT;
-	else if (res == SOCKET_ERROR)
-	{
-		/*
-		  In a real event framework, we should handle errors and re-try the select.
-		*/
-		return MYSQL_WAIT_TIMEOUT;
-	}
-	else
-	{
-		int status = 0;
-		if (FD_ISSET(s, &rs))
-			status |= MYSQL_WAIT_READ;
-		if (FD_ISSET(s, &ws))
-			status |= MYSQL_WAIT_WRITE;
-		if (FD_ISSET(s, &es))
-			status |= MYSQL_WAIT_EXCEPT;
-		return status;
-	}
-#else
+	int status = this->socket_state; 
 	struct pollfd pfd;
-	int timeout;
-	int res;
+	int timeout, res;
 
-	pfd.fd = mysql_get_socket(db.get());
+	pfd.fd = mysql_get_socket(instance);
 	pfd.events =
-		(waiting_state & MYSQL_WAIT_READ ? POLLIN : 0) |
-		(waiting_state & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
-		(waiting_state & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
-
-	res = poll(&pfd, 1, 0);
+		(status & MYSQL_WAIT_READ ? POLLIN : 0) |
+		(status & MYSQL_WAIT_WRITE ? POLLOUT : 0) |
+		(status & MYSQL_WAIT_EXCEPT ? POLLPRI : 0);
+	//if (status & MYSQL_WAIT_TIMEOUT)
+	//	timeout = 1000 * mysql_get_timeout_value(instance);
+	//else
+	timeout = 0;
+	res = poll(&pfd, 1, timeout);
 	if (res == 0)
 		return MYSQL_WAIT_TIMEOUT;
 	else if (res < 0)
-	{
-		/*
-		  In a real event framework, we should handle EINTR and re-try the poll.
-		*/
 		return MYSQL_WAIT_TIMEOUT;
-	}
-	else
-	{
+	else {
 		int status = 0;
-		if (pfd.revents & POLLIN)
-			status |= MYSQL_WAIT_READ;
-		if (pfd.revents & POLLOUT)
-			status |= MYSQL_WAIT_WRITE;
-		if (pfd.revents & POLLPRI)
-			status |= MYSQL_WAIT_EXCEPT;
+		if (pfd.revents & POLLIN) status |= MYSQL_WAIT_READ;
+		if (pfd.revents & POLLOUT) status |= MYSQL_WAIT_WRITE;
+		if (pfd.revents & POLLPRI) status |= MYSQL_WAIT_EXCEPT;
 		return status;
 	}
-#endif
 }
 
 int LuaDatabase::Tick(lua_State* L) {

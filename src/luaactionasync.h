@@ -11,21 +11,16 @@ namespace gluamysql {
 		virtual int Continue(lua_State* L, LuaDatabase* db) = 0;
 
 		bool Query(lua_State* L, LuaDatabase* db) override {
-			int state_needed = db->socket_state;
-			db->socket_state = db->GetSocketStatus();
 			if (!started) {
 				started = true;
+				db->socket_state = db->GetSocketStatus();
 				db->socket_state = Start(L, db);
 			}
-			
-			if ((state_needed & db->socket_state) != 0) {
+			else if (db->CheckStatus()) {
+				db->socket_state = db->GetSocketStatus();
 				db->socket_state = Continue(L, db);
 			}
 			
-			return IsDone(db);
-		}
-
-		bool IsDone(LuaDatabase *db) {
 			return db->socket_state == 0;
 		}
 
