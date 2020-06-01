@@ -53,7 +53,8 @@ namespace gluamysql {
 				started = true;
 				db->socket_state = std::get<0>(current_action)(this, L, db);
 			}
-			else if ((state_needed & db->socket_state) != 0) {
+			
+			if ((state_needed & db->socket_state) != 0) {
 				db->socket_state = std::get<1>(current_action)(this, L, db);
 			}
 
@@ -68,7 +69,6 @@ namespace gluamysql {
 		static int StartQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
 			return mysql_query_start(&action->out, db->instance, action->query.c_str());
 		}
-
 		static int ContinueQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
 			return mysql_query_cont(&action->out, db->instance, db->socket_state);
 		}

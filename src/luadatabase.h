@@ -30,15 +30,39 @@ namespace gluamysql {
 
 			lua_pushstring(L, "Tick"); // 3
 
-			LuaUserData<LuaDatabase>::PushLuaUserData(L, this); // 4
+
+			// we don't want to actually hold a reference since it can be gced
+
+			lua_newtable(L); // 4 (add id)
+			lua_pushcfunction(L, [](lua_State* L) {
+				lua_rawgeti(L, -1, 1);
+				lua_getfield(L, -1, "db");
+				auto db = LuaUserData<LuaDatabase>::GetLuaUserData(L, -1);
+				lua_pushboolean(L, !!db);
+				return 1;
+			}); // 5
+			lua_setfield(L, -2, "IsValid"); // 4
+
+			lua_newtable(L); // 5 (weak reference table)
+			lua_newtable(L); // 6 (metatable)
+			lua_pushstring(L, "v"); // 7
+			lua_setfield(L, -2, "__mode"); // 6
+			lua_setmetatable(L, -2); // 5
+
+			// set up the real userdata
+
+			LuaUserData<LuaDatabase>::PushLuaUserData(L, this); // 6
 
 			auto LUA = L->luabase;
 			LUA->SetState(L);
-			LUA->CreateMetaTable(MetaName); // 5
-			lua_setmetatable(L, -2); // 4
+			LUA->CreateMetaTable(MetaName); // 7
+			lua_setmetatable(L, -2); // 6
+
+			lua_setfield(L, -2, "db"); // 5
+			lua_rawseti(L, -2, 1); // 4
 
 			lua_pushvalue(L, -1); // 5
-			reference = luaL_ref(L, LUA_REGISTRYINDEX); // 4
+			reference = luaL_ref(L, LUA_REGISTRYINDEX); // 6
 
 			lua_pushcfunction(L, Tick); // 5
 
@@ -47,9 +71,20 @@ namespace gluamysql {
 			lua_pop(L, 1); // 0
 		}
 
+		~LuaDatabase() {
+			if (instance) {
+				mysql_close(instance);
+				instance = nullptr;
+			}
+		}
+
 	public:
 		void Push(lua_State* L) {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
+			lua_rawgeti(L, -1, 1);
+			lua_getfield(L, -1, "db");
+			lua_remove(L, lua_gettop(L) - 1);
+			lua_remove(L, lua_gettop(L) - 1);
 		}
 
 		int GetSocketStatus();

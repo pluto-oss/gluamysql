@@ -13,6 +13,18 @@ static int IsValid(lua_State* L) {
 	return 1;
 }
 
+static int GetActionCount(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+	if (!db) {
+		lua_pushnumber(L, 1);
+	}
+	else {
+		lua_pushnumber(L, db->current_action == nullptr ? 0 : 1 + db->queue.size());
+	}
+
+	return 1;
+}
+
 static int __gc(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1);
 	if (!db) {

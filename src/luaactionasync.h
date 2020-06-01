@@ -17,7 +17,8 @@ namespace gluamysql {
 				started = true;
 				db->socket_state = Start(L, db);
 			}
-			else if ((state_needed & db->socket_state) != 0) {
+			
+			if ((state_needed & db->socket_state) != 0) {
 				db->socket_state = Continue(L, db);
 			}
 			

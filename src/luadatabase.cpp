@@ -84,7 +84,9 @@ int gluamysql::LuaDatabase::GetSocketStatus() {
 }
 
 int LuaDatabase::Tick(lua_State* L) {
-	auto db = Get(L, 1);
+	lua_rawgeti(L, 1, 1);
+	lua_getfield(L, -1, "db");
+	auto db = Get(L, -1);
 
 	if (db->current_action == nullptr && db->queue.size() > 0) {
 		auto it = db->queue.begin();
