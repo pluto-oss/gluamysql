@@ -88,7 +88,8 @@ namespace gluamysql {
 		}
 
 		int GetSocketStatus();
-		__declspec(noinline) bool CheckStatus() {
+		
+		bool CheckStatus() {
 			int waiting_state = socket_state;
 			int wstate0 = waiting_state & (MYSQL_WAIT_READ | MYSQL_WAIT_WRITE);
 			int wstate1 = waiting_state & MYSQL_WAIT_EXCEPT;
