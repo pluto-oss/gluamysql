@@ -53,11 +53,6 @@ namespace gluamysql {
 
 			LuaUserData<LuaDatabase>::PushLuaUserData(L, this); // 6
 
-			auto LUA = L->luabase;
-			LUA->SetState(L);
-			LUA->CreateMetaTable(MetaName); // 7
-			lua_setmetatable(L, -2); // 6
-
 			lua_setfield(L, -2, "db"); // 5
 			lua_rawseti(L, -2, 1); // 4
 

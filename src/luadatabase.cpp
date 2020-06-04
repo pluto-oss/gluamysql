@@ -79,12 +79,21 @@ LuaDatabase* LuaUserData<LuaDatabase>::GetLuaUserData(lua_State* L, int index) {
 	auto LUA = L->luabase;
 	LUA->SetState(L);
 
-	return LUA->GetUserType<LuaDatabase>(index, LuaDatabase::MetaType);
+	auto ret = LUA->GetUserType<LuaDatabase>(index, LuaDatabase::MetaType);
+
+	if (!ret) {
+		lua_pushstring(L, "LuaDatabase is NULL");
+		lua_error(L);
+	}
+
+	return ret;
 }
 
 void LuaUserData<LuaDatabase>::PushLuaUserData(lua_State* L, LuaDatabase* what) {
 	auto LUA = L->luabase;
 	LUA->SetState(L);
 
-	return LUA->PushUserType(what, LuaDatabase::MetaType);
+	LUA->PushUserType(what, LuaDatabase::MetaType);
+	LUA->CreateMetaTable(LuaDatabase::MetaName);
+	lua_setmetatable(L, -2);
 }

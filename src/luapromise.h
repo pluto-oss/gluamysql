@@ -44,15 +44,4 @@ namespace gluamysql {
 			return 0;
 		}
 	};
-
-	template <>
-	class LuaUserData<LuaPromise> {
-	public:
-		static LuaPromise* GetLuaUserData(lua_State* L, int index) {
-			return *(LuaPromise * *)lua_touserdata(L, index);
-		}
-		static void PushLuaUserData(lua_State* L, LuaPromise* what) {
-			*(decltype(what)*)lua_newuserdata(L, sizeof(what)) = what;
-		}
-	};
 }

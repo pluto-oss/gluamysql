@@ -8,29 +8,6 @@
 #include <tuple>
 
 namespace gluamysql {
-	static void PushFieldToLua(lua_State* L, std::string field, int field_type) {
-		switch (field_type) {
-		case MYSQL_TYPE_FLOAT:
-		case MYSQL_TYPE_DOUBLE:
-		case MYSQL_TYPE_LONGLONG:
-		case MYSQL_TYPE_LONG:
-		case MYSQL_TYPE_INT24:
-		case MYSQL_TYPE_TINY:
-		case MYSQL_TYPE_SHORT:
-			lua_pushnumber(L, std::atof(field.c_str()));
-			break;
-		case MYSQL_TYPE_BIT:
-			lua_pushnumber(L, static_cast<int>(field[0]));
-			break;
-		case MYSQL_TYPE_NULL:
-			lua_pushnil(L);
-			break;
-		default:
-			lua_pushlstring(L, field.c_str(), field.length());
-			break;
-		}
-	}
-
 	class QueryAction : public LuaAction {
 	public:
 		QueryAction(lua_State* L, std::string _query) : LuaAction{ L }, query(_query) {
@@ -106,28 +83,9 @@ namespace gluamysql {
 			}
 
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->data_reference);
-			lua_newtable(L);
-
-			auto lengths = mysql_fetch_lengths(action->results);
-
-			for (unsigned int i = 0; i < mysql_num_fields(action->results); i++) {
-				auto field = mysql_fetch_field_direct(action->results, i);
-
-				lua_pushlstring(L, field->name, field->name_length);
-
-				// push data from field result set
-				if (lengths[i] == 0) {
-					lua_pushnil(L);
-				}
-				else {
-					gluamysql::PushFieldToLua(L, std::string(action->row[i], lengths[i]), field->type);
-				}
-
-				lua_rawset(L, -3);
-			}
+			gluamysql::PushRow(L, action->results, action->row);
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-
 
 			// keep same action looping until done
 			return false;

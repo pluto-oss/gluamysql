@@ -19,9 +19,7 @@ namespace gluamysql {
 
 		void Finish(lua_State* L, LuaDatabase* db) override {
 			if (!out) {
-				PushReject(L);
-				lua_pushstring(L, mysql_error(db->instance));
-				lua_call(L, 1, 0);
+				Reject(L, db);
 			}
 			else {
 				PushResolve(L);

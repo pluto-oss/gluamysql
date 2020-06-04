@@ -1,6 +1,8 @@
 #pragma once
 #include "lua.hpp"
 #include "GarrysMod/Lua/Interface.h"
+#include "mysql.h"
+#include <string>
 
 namespace gluamysql {
 	struct _library {
@@ -36,17 +38,53 @@ namespace gluamysql {
 			lib++;
 		}
 
-		lua_pop(L, 2);
+		lua_pop(L, 1);
 
 		return ret;
 	}
 
-	static int PushUserdataInfo(lua_State* L) {
-		lua_getfield(L, LUA_REGISTRYINDEX, "UserdataInfo");
+	static void PushField(lua_State* L, std::string field, int field_type) {
+		switch (field_type) {
+		case MYSQL_TYPE_FLOAT:
+		case MYSQL_TYPE_DOUBLE:
+		case MYSQL_TYPE_LONGLONG:
+		case MYSQL_TYPE_LONG:
+		case MYSQL_TYPE_INT24:
+		case MYSQL_TYPE_TINY:
+		case MYSQL_TYPE_SHORT:
+			lua_pushnumber(L, std::atof(field.c_str()));
+			break;
+		case MYSQL_TYPE_BIT:
+			lua_pushnumber(L, static_cast<int>(field[0]));
+			break;
+		case MYSQL_TYPE_NULL:
+			lua_pushnil(L);
+			break;
+		default:
+			lua_pushlstring(L, field.c_str(), field.length());
+			break;
+		}
 	}
 
-	template <typename T>
-	static void PushUserdata(T *what, void (*push)(lua_State*, T what)) {
+	static void PushRow(lua_State *L, MYSQL_RES* results, MYSQL_ROW row) {
+		lua_newtable(L);
 
+		auto lengths = mysql_fetch_lengths(results);
+
+		for (unsigned int i = 0; i < mysql_num_fields(results); i++) {
+			auto field = mysql_fetch_field_direct(results, i);
+
+			lua_pushlstring(L, field->name, field->name_length);
+
+			// push data from field result set
+			if (lengths[i] == 0) {
+				lua_pushnil(L);
+			}
+			else {
+				PushField(L, std::string(row[i], lengths[i]), field->type);
+			}
+
+			lua_rawset(L, -3);
+		}
 	}
 }

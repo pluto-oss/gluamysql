@@ -7,7 +7,6 @@ using namespace gluamysql;
 
 static int mysql_connect(lua_State* L) {
 	auto db = new LuaDatabase(L);
-	db->Push(L);
 
 	if (!lua_isstring(L, 1)) {
 		luaL_typerror(L, 1, "string");
@@ -27,7 +26,7 @@ static int mysql_connect(lua_State* L) {
 	db->InsertAction(query);
 	query->Push(L);
 
-	return 2;
+	return 1;
 }
 
 const _library gluamysql::library[] = {

@@ -3,6 +3,7 @@
 #include "lua.hpp"
 #include "luapromise.h"
 #include "luadatabase.h"
+#include "luapreparedstatement.h"
 
 
 DLL_EXPORT int gmod13_open(lua_State *L) {
@@ -10,6 +11,7 @@ DLL_EXPORT int gmod13_open(lua_State *L) {
 	lua_setfield(L, LUA_GLOBALSINDEX, "mysql");
 
 	gluamysql::CreateMetaTable(L, gluamysql::LuaDatabase::MetaName, gluamysql::LuaDatabase::library);
+	gluamysql::CreateMetaTable(L, gluamysql::LuaPreparedStatement::MetaName, gluamysql::LuaPreparedStatement::library);
 
 	lua_newtable(L);
 	lua_setfield(L, LUA_REGISTRYINDEX, "gluamysql::UserdataInfo");

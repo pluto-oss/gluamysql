@@ -1,6 +1,7 @@
 #include "luadatabase.h"
 #include "actions/query.h"
 #include "lua.hpp"
+#include "luapreparedstatement.h"
 
 using namespace gluamysql;
 
@@ -30,6 +31,8 @@ static int __gc(lua_State* L) {
 	if (!db) {
 		return 0;
 	}
+
+	luaL_unref(L, LUA_REGISTRYINDEX, db->reference);
 
 	delete db;
 
@@ -72,11 +75,32 @@ static int query(lua_State* L) {
 	return 1;
 }
 
+static int prepare(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	if (!db)
+		luaL_typerror(L, 1, LuaDatabase::MetaName);
+
+	if (!lua_isstring(L, 2))
+		luaL_typerror(L, 2, "string");
+
+
+	size_t size;
+	const char* c_str = lua_tolstring(L, 2, &size);
+	std::string str(c_str, size);
+
+	auto statement = new LuaPreparedStatement(L, db, str);
+	statement->Push(L);
+
+	return 1;
+}
+
 const _library LuaDatabase::library[] = {
 	{ "__gc", __gc },
 	{ "__tostring", __tostring },
 	{ "IsValid", IsValid },
 	{ "query", query },
+	{ "prepare", prepare },
 	{ 0, 0 }
 };
 
