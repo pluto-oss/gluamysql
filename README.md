@@ -16,7 +16,14 @@ All in all this will likely be useful for developers to make a wrapper that suit
 ### This is the API lower level developers can use to design their api around.
 
 
-#### `gluamysql.connect(host, user, password, db, port)` -> `Promise<gluamysql::Database>`
+#### `gluamysql.connect`(`host`, `user`, `password`, `db`, `port`) -> `Promise<gluamysql::LuaDatabase>`
 
-#### `gluamysql::Database`:`query` -> `Promise<table>`
+#### `gluamysql::LuaDatabase`:`query`(`querystring`) -> `Promise<table>`
 Returned table has tables pertaining to how many rows were returned from the query. Data in each row have key as the field name and data in the value.
+
+#### `gluamysql::LuaDatabase`:`prepare`(`querystring`) -> `Promise<gluamysql::LuaPreparedStatement>`
+
+#### `gluamysql::LuaPreparedStatement`:`parametercount`() -> number
+
+#### `gluamysql::LuaPreparedStatement`:`execute`(`...`) -> `Promise<table>`
+Similar to `gluamysql::LuaDatabase`:`query`
