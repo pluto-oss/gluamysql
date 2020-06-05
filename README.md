@@ -14,7 +14,10 @@ All in all this will likely be useful for developers to make a wrapper that suit
 
 ## Lua Connector
 ### This is the API lower level developers can use to design their api around.
+#### Requires [promise.lua](lua/promise.lua)
 
+
+### API
 
 #### `gluamysql.connect`(`host`, `user`, `password`, `db`, `port`) -> `Promise<gluamysql::LuaDatabase>`
 
