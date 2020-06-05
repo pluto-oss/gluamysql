@@ -79,7 +79,7 @@ namespace gluamysql {
 				argument.is_null = CreateBuffer<my_bool>(1);
 			}
 
-			for (int i = start; i <= lua_gettop(L) && i <= start + arguments.size(); i++) {
+			for (int i = start; i <= lua_gettop(L) && i <= start + arguments.size() - 1; i++) {
 				PopulateBind(L, &arguments[i - start], i);
 			}
 
@@ -235,7 +235,7 @@ namespace gluamysql {
 
 			// more data
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->reference);
-			gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data());
+			gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns);
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
 			lua_pop(L, 1);
 

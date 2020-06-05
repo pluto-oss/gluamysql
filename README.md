@@ -17,16 +17,36 @@ All in all this will likely be useful for developers to make a wrapper that suit
 #### Requires [promise.lua](lua/promise.lua)
 
 
+### Noteworthy Files
+#### [cmysql.lua](lua/cmysql.lua) - a simplified version of the c connector api that runs in coroutines
+#### [example.lua](lua/example.lua) - an example of how to use gluamysql
+
+
+
 ### API
 
 #### `gluamysql.connect`(`host`, `user`, `password`, `db`, `port`) -> `Promise<gluamysql::LuaDatabase>`
+##### mysql_init, mysql_connect_real
 
 #### `gluamysql::LuaDatabase`:`query`(`querystring`) -> `Promise<table>`
+##### mysql_query
 Returned table has tables pertaining to how many rows were returned from the query. Data in each row have key as the field name and data in the value.
 
 #### `gluamysql::LuaDatabase`:`prepare`(`querystring`) -> `Promise<gluamysql::LuaPreparedStatement>`
+#### mysql_stmt_init, mysql_stmt_prepare
+
+#### `gluamysql::LuaDatabase`:`autocommit`(`autocommit_state`) -> `Promise<>`
+##### mysql_autocommit
+
+#### `gluamysql::LuaDatabase`:`commit`() -> `Promise<>`
+##### mysql_commit
+
+#### `gluamysql::LuaDatabase`:`rollback`() -> `Promise<>`
+##### mysql_rollback
 
 #### `gluamysql::LuaPreparedStatement`:`parametercount`() -> number
+##### mysql_stmt_param_count
 
 #### `gluamysql::LuaPreparedStatement`:`execute`(`...`) -> `Promise<table>`
+##### mysql_stmt_execute
 Similar to `gluamysql::LuaDatabase`:`query`

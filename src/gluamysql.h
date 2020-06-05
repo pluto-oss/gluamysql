@@ -66,10 +66,10 @@ namespace gluamysql {
 		}
 	}
 
-	static void PushRow(lua_State *L, MYSQL_RES* results, MYSQL_ROW row, unsigned long *lengths) {
+	static void PushRow(lua_State *L, MYSQL_RES* results, MYSQL_ROW row, unsigned long *lengths, unsigned int fieldcount) {
 		lua_newtable(L);
 
-		for (unsigned int i = 0; i < mysql_num_fields(results); i++) {
+		for (unsigned int i = 0; i < fieldcount; i++) {
 			auto field = mysql_fetch_field_direct(results, i);
 
 			lua_pushlstring(L, field->name, field->name_length);

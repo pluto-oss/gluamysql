@@ -2,6 +2,7 @@
 #include "actions/query.h"
 #include "lua.hpp"
 #include "luapreparedstatement.h"
+#include "actions/autocommit.h"
 
 using namespace gluamysql;
 
@@ -14,20 +15,9 @@ static int IsValid(lua_State* L) {
 	return 1;
 }
 
-static int GetActionCount(lua_State* L) {
-	auto db = LuaDatabase::Get(L, 1);
-	if (!db) {
-		lua_pushnumber(L, 1);
-	}
-	else {
-		lua_pushnumber(L, db->current_action == nullptr ? 0 : 1 + db->queue.size());
-	}
-
-	return 1;
-}
-
 static int __gc(lua_State* L) {
-	auto db = LuaDatabase::Get(L, 1);
+	auto db = LuaDatabase::Get(L, 1, true);
+
 	if (!db) {
 		return 0;
 	}
@@ -42,7 +32,8 @@ static int __gc(lua_State* L) {
 }
 
 static int __tostring(lua_State* L) {
-	auto db = LuaDatabase::Get(L, 1);
+	auto db = LuaDatabase::Get(L, 1, true);
+
 	if (!db) {
 		lua_pushfstring(L, "[NULL] %s", LuaDatabase::MetaName);
 	}
@@ -53,11 +44,10 @@ static int __tostring(lua_State* L) {
 	return 1;
 }
 
+// direct bindings
+
 static int query(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1);
-
-	if (!db)
-		luaL_typerror(L, 1, LuaDatabase::MetaName);
 
 	if (!lua_isstring(L, 2))
 		luaL_typerror(L, 2, "string");
@@ -67,7 +57,7 @@ static int query(lua_State* L) {
 	const char* c_str = lua_tolstring(L, 2, &size);
 	std::string str(c_str, size);
 
-	auto promise = std::make_shared<gluamysql::QueryAction>(L, str);
+	auto promise = std::make_shared<QueryAction>(L, str);
 	db->InsertAction(promise);
 
 	promise->Push(L);
@@ -77,9 +67,6 @@ static int query(lua_State* L) {
 
 static int prepare(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1);
-
-	if (!db)
-		luaL_typerror(L, 1, LuaDatabase::MetaName);
 
 	if (!lua_isstring(L, 2))
 		luaL_typerror(L, 2, "string");
@@ -95,12 +82,67 @@ static int prepare(lua_State* L) {
 	return 1;
 }
 
+static int autocommit(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	if (!lua_isboolean(L, 2))
+		luaL_typerror(L, 2, "boolean");
+
+	auto promise = std::make_shared<AutoCommitAction>(L, lua_toboolean(L, 2));
+	db->InsertAction(promise);
+
+	promise->Push(L);
+
+	return 1;
+}
+
+static int commit(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	auto promise = std::make_shared<CommitAction>(L);
+	db->InsertAction(promise);
+
+	promise->Push(L);
+
+	return 1;
+}
+
+static int rollback(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	auto promise = std::make_shared<RollbackAction>(L);
+	db->InsertAction(promise);
+
+	promise->Push(L);
+
+	return 1;
+}
+
+// implementation api
+
+static int queuelength(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	lua_pushnumber(L, db->current_action == nullptr ? 0 : 1 + db->queue.size());
+
+	return 1;
+}
+
 const _library LuaDatabase::library[] = {
 	{ "__gc", __gc },
 	{ "__tostring", __tostring },
-	{ "IsValid", IsValid },
+
+	// direct bindings to mysql_ c api
 	{ "query", query },
 	{ "prepare", prepare },
+	{ "autocommit", autocommit },
+	{ "commit", commit },
+	{ "rollback", rollback },
+
+	// internal implementations 
+	{ "IsValid", IsValid },
+	{ "queuelength", queuelength },
+
 	{ 0, 0 }
 };
 

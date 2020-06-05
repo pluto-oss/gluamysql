@@ -55,19 +55,25 @@ int LuaDatabase::Tick(lua_State* L) {
 
 	while (db->current_action != nullptr) {
 		auto& action = db->current_action;
-		if (action->Query(L, db)) {
+		if (action->has_finished) {
+			// errored in DoFinish
+			action->Free(L);
+		}
+		else if (action->Query(L, db)) {
 			action->DoFinish(L, db);
 			action->Free(L);
-			db->current_action = nullptr;
-			
-			if (db->queue.size() > 0) {
-				auto it = db->queue.begin();
-				db->current_action = it[0];
-				db->queue.erase(it);
-			}
 		}
 		else {
 			break;
+		}
+
+		// set up next action
+		db->current_action = nullptr;
+
+		if (db->queue.size() > 0) {
+			auto it = db->queue.begin();
+			db->current_action = it[0];
+			db->queue.erase(it);
 		}
 	}
 
