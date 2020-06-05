@@ -2,15 +2,23 @@
 
 ## MySQL Lua Connector
 
-Purpose: Create a Garry's Mod Lua MySQL Connector using MariaDB's MySQL C Connector and their async functions
+Objective:
 
-Using this async api and using a Promise will allow us to create connections to MySQL servers with connector api that handle common errors easily as well as implementing connection pools if a developer wants to. If a MySQL Server Database connection fails, we can easily reconnect as needed as well
+Create a Garry's Mod Lua MySQL Connector using MariaDB's MySQL C Connector and their async functions
+
+Purpose:
+
+I've had many problems and many issues with other MySQL modules for Garry's Mod, either infinite looping or unmaintainable code that's been long gone. I want to create a simple to understand and lightweight module for people to developer with for their own needs.
+
+Differences to similar software:
+
+This software will always have a consistent API as long as the MySQL C Connector API is the same, other modules have wrappers upon the C Connector, causing issues and potentially nightmare-ish upgrade paths if their API needs to change.
 
 Using MariaDB's MySQL C Connector is desirable as it supports 32 bit, which most linux Garry's Mod servers will do for a long while as older hosts slowly migrate to the new version, and it also will support 64 bit at the same time!
 
-Using a Promise library, you can potentially use coroutine wrappers to act as if it is sync and have threads dedicated to specific databases
+Using a Promise library, you can potentially use coroutine wrappers to act as if it is sync and have threads dedicated to specific databases; we've created a wrapper ourselves in [cmysql.lua](lua/cmysql.lua)
 
-All in all this will likely be useful for developers to make a wrapper that suits their own needs, even going as far as mimicking other MySQL modules for Garry's Mod
+This is intended to be useful for developers wanting to make a wrapper that suits their own needs such as recreating the API for other MySQL clients built for Garry's Mod
 
 ## Lua Connector
 ### This is the API lower level developers can use to design their api around.

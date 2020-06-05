@@ -1,3 +1,8 @@
+--[[
+	SEE https://github.com/pluto-oss/gluamysql/blob/master/lua/cmysql_example.lua IF YOU WANT TO HAVE AN EXAMPLE OF HOW TO USE THIS FILE
+
+]]
+
 include "promise.lua"
 require "gluamysql"
 
