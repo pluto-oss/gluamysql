@@ -75,13 +75,13 @@ int LuaDatabase::Tick(lua_State* L) {
 }
 
 
-LuaDatabase* LuaUserData<LuaDatabase>::GetLuaUserData(lua_State* L, int index) {
+LuaDatabase* LuaUserData<LuaDatabase>::GetLuaUserData(lua_State* L, int index, bool ignore_null) {
 	auto LUA = L->luabase;
 	LUA->SetState(L);
 
 	auto ret = LUA->GetUserType<LuaDatabase>(index, LuaDatabase::MetaType);
 
-	if (!ret) {
+	if (!ignore_null && !ret) {
 		lua_pushstring(L, "LuaDatabase is NULL");
 		lua_error(L);
 	}

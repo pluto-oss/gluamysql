@@ -14,7 +14,7 @@ namespace gluamysql {
 	template <>
 	class LuaUserData<LuaDatabase> {
 	public:
-		static LuaDatabase* GetLuaUserData(lua_State* L, int index);
+		static LuaDatabase* GetLuaUserData(lua_State* L, int index, bool ignore_null = false);
 		static void PushLuaUserData(lua_State* L, LuaDatabase* what);
 	};
 
@@ -37,7 +37,7 @@ namespace gluamysql {
 			lua_pushcfunction(L, [](lua_State* L) {
 				lua_rawgeti(L, -1, 1);
 				lua_getfield(L, -1, "db");
-				auto db = LuaUserData<LuaDatabase>::GetLuaUserData(L, -1);
+				auto db = LuaUserData<LuaDatabase>::GetLuaUserData(L, -1, true);
 				lua_pushboolean(L, !!db);
 				return 1;
 			}); // 5
@@ -104,8 +104,8 @@ namespace gluamysql {
 		static const char *MetaName;
 		static int MetaType;
 
-		static LuaDatabase* Get(lua_State* L, int index) {
-			return LuaUserData<LuaDatabase>::GetLuaUserData(L, index);
+		static LuaDatabase* Get(lua_State* L, int index, bool ignore_null = false) {
+			return LuaUserData<LuaDatabase>::GetLuaUserData(L, index, ignore_null);
 		}
 
 		static int Tick(lua_State* L);

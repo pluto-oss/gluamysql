@@ -27,9 +27,12 @@ namespace gluamysql {
 			LuaPromise::Free(L);
 		}
 
-		void Reject(lua_State *L, LuaDatabase* db) {
+		void Reject(lua_State *L, LuaDatabase* db, const char *error = nullptr) {
+			if (error == nullptr) {
+				error = mysql_error(db->instance);
+			}
 			PushReject(L);
-			lua_pushstring(L, mysql_error(db->instance));
+			lua_pushstring(L, error);
 			lua_call(L, 1, 0);
 		}
 

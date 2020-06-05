@@ -34,6 +34,8 @@ namespace gluamysql {
 				db->socket_state = std::get<1>(current_action)(this, L, db);
 			}
 
+			bool has_finished = false;
+
 			if (db->socket_state == 0) {
 				has_finished = std::get<2>(current_action)(this, L, db);
 				started = false;
@@ -83,9 +85,11 @@ namespace gluamysql {
 			}
 
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->data_reference);
-			gluamysql::PushRow(L, action->results, action->row);
+			gluamysql::PushRow(L, action->results, action->row, mysql_fetch_lengths(action->results));
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+
+			lua_pop(L, 1);
 
 			// keep same action looping until done
 			return false;
@@ -116,7 +120,6 @@ namespace gluamysql {
 	public:
 		bool started = false;
 		Action current_action;
-		bool has_finished = false;
 
 	public:
 		int out = 0;

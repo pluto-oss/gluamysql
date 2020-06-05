@@ -6,7 +6,7 @@ namespace gluamysql {
 	class LuaUserData {
 	public:
 
-		static T* GetLuaUserData(lua_State* L, int index) {
+		static T* GetLuaUserData(lua_State* L, int index, bool ignore_null = false) {
 			static_assert(false, "should not compile!");
 		}
 
