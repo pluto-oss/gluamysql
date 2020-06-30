@@ -8,20 +8,20 @@ int LuaPreparedStatement::MetaType = 0;
 
 void LuaPreparedStatement::Start(lua_State* L, std::string statement) {
 	action = std::make_shared<PrepareStatementAction>(L, this, statement);
-	db->InsertAction(action);
+	db->InsertAction(L, action);
 }
 
 void LuaPreparedStatement::Push(lua_State* L) {
 	action->Push(L);
 }
 
-LuaPreparedStatement *LuaUserData<LuaPreparedStatement>::GetLuaUserData(lua_State* L, int index) {
+LuaPreparedStatement *LuaUserData<LuaPreparedStatement>::GetLuaUserData(lua_State* L, int index, bool ignore_null) {
 	auto LUA = L->luabase;
 	LUA->SetState(L);
 
 	auto ret = LUA->GetUserType<LuaPreparedStatement>(index, LuaPreparedStatement::MetaType);
 
-	if (!ret) {
+	if (!ignore_null && !ret) {
 		lua_pushstring(L, "LuaPreparedStatement is NULL");
 		lua_error(L);
 	}

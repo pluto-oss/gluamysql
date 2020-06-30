@@ -15,7 +15,7 @@ namespace gluamysql {
 	template <>
 	class LuaUserData<LuaPreparedStatement> {
 	public:
-		static LuaPreparedStatement* GetLuaUserData(lua_State* L, int index);
+		static LuaPreparedStatement* GetLuaUserData(lua_State* L, int index, bool ignore_null = false);
 		static void PushLuaUserData(lua_State* L, LuaPreparedStatement* what);
 	};
 

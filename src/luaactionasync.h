@@ -20,7 +20,7 @@ namespace gluamysql {
 				db->socket_state = db->GetSocketStatus();
 				db->socket_state = Continue(L, db);
 			}
-			
+
 			return db->socket_state == 0;
 		}
 

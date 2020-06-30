@@ -1,4 +1,5 @@
 #include "luadatabase.h"
+#include "actions/close.h"
 #include "luaaction.h"
 
 #include "mysql.h"
@@ -13,9 +14,13 @@
 
 using namespace gluamysql;
 
+std::deque<LuaDatabase*>LuaDatabase::open_databases = std::deque<LuaDatabase *>();
 
 int gluamysql::LuaDatabase::GetSocketStatus() {
-	int status = this->socket_state; 
+	return GetCurrentDatabaseStatus(instance, socket_state);
+}
+
+int gluamysql::GetCurrentDatabaseStatus(MYSQL* instance, int status) {
 	struct pollfd pfd;
 	int timeout, res;
 
@@ -42,44 +47,39 @@ int gluamysql::LuaDatabase::GetSocketStatus() {
 	}
 }
 
-int LuaDatabase::Tick(lua_State* L) {
-	lua_rawgeti(L, 1, 1);
-	lua_getfield(L, -1, "db");
-	auto db = Get(L, -1);
-
-	if (db->current_action == nullptr && db->queue.size() > 0) {
-		auto it = db->queue.begin();
-		db->current_action = it[0];
-		db->queue.erase(it);
-	}
-
-	while (db->current_action != nullptr) {
-		auto& action = db->current_action;
-		if (action->has_finished) {
-			// errored in DoFinish
-			action->Free(L);
+void LuaDatabase::RunTick(lua_State *L) {
+	do {
+		if (current_action == nullptr) {
+			if (queue.size() == 0) {
+				break;
+			}
+			auto it = queue.begin();
+			current_action = it[0];
+			queue.erase(it);
 		}
-		else if (action->Query(L, db)) {
-			action->DoFinish(L, db);
-			action->Free(L);
+
+		if (current_action->has_finished) {
+			// errored in DoFinish
+			current_action->Free(L);
+		}
+		else if (current_action->Query(L, this)) {
+			current_action->DoFinish(L, this);
+			current_action->Free(L);
 		}
 		else {
 			break;
 		}
 
 		// set up next action
-		db->current_action = nullptr;
+		current_action = nullptr;
+	} while (current_action != nullptr);
 
-		if (db->queue.size() > 0) {
-			auto it = db->queue.begin();
-			db->current_action = it[0];
-			db->queue.erase(it);
-		}
+	if (queue.size() == 0 && current_action == nullptr && queue_reference != LUA_REFNIL && queue_reference != LUA_NOREF) {
+		luaL_unref(L, LUA_REGISTRYINDEX, queue_reference);
+		queue_reference = LUA_REFNIL;
 	}
 
-	return 0;
 }
-
 
 LuaDatabase* LuaUserData<LuaDatabase>::GetLuaUserData(lua_State* L, int index, bool ignore_null) {
 	auto LUA = L->luabase;

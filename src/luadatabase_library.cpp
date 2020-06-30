@@ -3,6 +3,7 @@
 #include "lua.hpp"
 #include "luapreparedstatement.h"
 #include "actions/autocommit.h"
+#include "actions/close.h"
 
 using namespace gluamysql;
 
@@ -22,11 +23,16 @@ static int __gc(lua_State* L) {
 		return 0;
 	}
 
+	// TODO(meep): clear the things in the tick hook first
+
 	luaL_unref(L, LUA_REGISTRYINDEX, db->reference);
+	db->reference = LUA_NOREF;
 
-	delete db;
+	db->gced = true;
 
-	*(LuaDatabase * *)lua_touserdata(L, 1) = nullptr;
+	db->queue.push_back(std::make_shared<CloseAction>(L));
+
+	ClearUserData(L, 1);
 
 	return 0;
 }
@@ -34,11 +40,11 @@ static int __gc(lua_State* L) {
 static int __tostring(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1, true);
 
-	if (!db) {
-		lua_pushfstring(L, "[NULL] %s", LuaDatabase::MetaName);
+	if (db) {
+		lua_pushfstring(L, "%s: %p", LuaDatabase::MetaName, db);
 	}
 	else {
-		lua_pushfstring(L, "%s: %p", LuaDatabase::MetaName, db);
+		lua_pushfstring(L, "%s: NULL", LuaDatabase::MetaName);
 	}
 
 	return 1;
@@ -58,7 +64,7 @@ static int query(lua_State* L) {
 	std::string str(c_str, size);
 
 	auto promise = std::make_shared<QueryAction>(L, str);
-	db->InsertAction(promise);
+	db->InsertAction(L, promise);
 
 	promise->Push(L);
 
@@ -89,7 +95,7 @@ static int autocommit(lua_State* L) {
 		luaL_typerror(L, 2, "boolean");
 
 	auto promise = std::make_shared<AutoCommitAction>(L, lua_toboolean(L, 2));
-	db->InsertAction(promise);
+	db->InsertAction(L, promise);
 
 	promise->Push(L);
 
@@ -100,7 +106,7 @@ static int commit(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1);
 
 	auto promise = std::make_shared<CommitAction>(L);
-	db->InsertAction(promise);
+	db->InsertAction(L, promise);
 
 	promise->Push(L);
 
@@ -111,7 +117,7 @@ static int rollback(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1);
 
 	auto promise = std::make_shared<RollbackAction>(L);
-	db->InsertAction(promise);
+	db->InsertAction(L, promise);
 
 	promise->Push(L);
 

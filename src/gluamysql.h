@@ -3,10 +3,30 @@
 #include "GarrysMod/Lua/Interface.h"
 #include "mysql.h"
 #include <string>
+#include <deque>
 
 namespace gluamysql {
+	static void tremove(lua_State* L, int where, int ind) {
+		if (lua_type(L, where) != LUA_TTABLE) {
+			luaL_typerror(L, where, "table");
+		}
+
+		if (where < 0) {
+			where = lua_gettop(L) + 1 + where;
+		}
+
+		auto length = lua_objlen(L, where);
+		for (int i = ind; i < (signed)length; i++) {
+			lua_rawgeti(L, where, i + 1);
+			lua_rawseti(L, where, i);
+		}
+
+		lua_pushnil(L);
+		lua_rawseti(L, where, length);
+	}
+
 	struct _library {
-		const char *name;
+		const char* name;
 		lua_CFunction func;
 	};
 
@@ -84,5 +104,12 @@ namespace gluamysql {
 
 			lua_rawset(L, -3);
 		}
+	}
+
+	static void ClearUserData(lua_State* L, int where) {
+		auto LUA = L->luabase;
+		LUA->SetState(L);
+
+		LUA->SetUserType(where, nullptr);
 	}
 }
