@@ -33,7 +33,7 @@ This is intended to be useful for developers wanting to make a wrapper that suit
 
 ---
 
-#### `gluamysql.connect`(`host`, `user`, `password`, `db`, `port`) -> `Promise`<`gluamysql::LuaDatabase`>
+#### `mysql.connect`(`host`, `user`, `password`, `db`, `port`) -> `Promise`<`gluamysql::LuaDatabase`>
 **see: `mysql_init`, `mysql_connect_real`**
 
 ---
