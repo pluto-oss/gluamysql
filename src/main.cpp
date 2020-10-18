@@ -27,24 +27,22 @@ end"
 static bool TickHookTick(lua_State* L) {
 	bool unready = false;
 
-	auto it = gluamysql::LuaDatabase::open_databases.begin();
+	auto& list = gluamysql::LuaDatabase::open_databases;
 
-	while (it != gluamysql::LuaDatabase::open_databases.end()) {
+	for (auto it = list.begin(); it != list.end(); ) {
 		auto db = *it;
 		if (db->current_action != nullptr || db->queue.size() > 0) {
 			db->RunTick(L);
 			unready = true;
-
-			it++;
 		}
 		else if (db->gced) {
-			it = gluamysql::LuaDatabase::open_databases.erase(it);
+			// NOTE: does not work on my vs2019 debug build????
+			it = list.erase(it);
 
 			delete db;
+			continue;
 		}
-		else {
-			it++;
-		}
+		it++;
 	}
 
 	return !unready;

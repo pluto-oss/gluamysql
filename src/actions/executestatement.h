@@ -197,13 +197,15 @@ namespace gluamysql {
 			}
 
 			// binds results
-			try {
-				action->resultdata = std::make_shared<ResultData>(action->stmt->stmt);
-			}
-			catch (const char *) {
-				action->Reject(L, db);
-				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-				return true;
+			if (mysql_stmt_result_metadata(action->stmt->stmt) != nullptr) {
+				try {
+					action->resultdata = std::make_shared<ResultData>(action->stmt->stmt);
+				}
+				catch (const char*) {
+					action->Reject(L, db);
+					action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
+					return true;
+				}
 			}
 			action->current_action = std::make_tuple(FetchStart, FetchContinue, FetchFinish);
 
@@ -235,7 +237,17 @@ namespace gluamysql {
 
 			// more data
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->reference);
-			gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns);
+
+			if (action->resultdata) {
+				gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns);
+			}
+			auto id = mysql_insert_id(db->instance);
+			if (id != 0) {
+				// was inserted
+				lua_pushinteger(L, (lua_Integer)id);
+				lua_setfield(L, -2, "LAST_INSERT_ID");
+			}
+
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
 			lua_pop(L, 1);
 
@@ -297,6 +309,6 @@ namespace gluamysql {
 
 		my_bool fetch_out = 0;
 
-		std::shared_ptr<ResultData> resultdata;
+		std::shared_ptr<ResultData> resultdata = nullptr;
 	};
 }

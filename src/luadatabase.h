@@ -43,6 +43,8 @@ namespace gluamysql {
 		LuaDatabase(lua_State* L) {
 			instance = mysql_init(NULL);
 			mysql_options(instance, MYSQL_OPT_NONBLOCK, 0);
+			my_bool reconnect = false;
+			mysql_options(instance, MYSQL_OPT_RECONNECT, &reconnect);
 
 			// we don't want to actually hold a reference since it can be gced
 

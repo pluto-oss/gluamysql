@@ -36,6 +36,15 @@ namespace gluamysql {
 
 			if (db->socket_state == 0) {
 				if (std::get<2>(current_action)(this, L, db)) {
+					auto _errno = mysql_errno(db->instance);
+					if (!has_retried && (_errno == 2006 || _errno == 2013)) {
+						// server lost, try reperform
+						has_retried = true;
+
+						lua_newtable(L);
+						lua_rawseti(L, LUA_REGISTRYINDEX, data_reference);
+					}
+
 					return true;
 				}
 				started = false;
@@ -85,7 +94,14 @@ namespace gluamysql {
 			}
 
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->data_reference);
+
 			gluamysql::PushRow(L, action->results, action->row, mysql_fetch_lengths(action->results), mysql_num_fields(action->results));
+			auto id = mysql_insert_id(db->instance);
+			if (id != 0) {
+				// was inserted
+				lua_pushinteger(L, (lua_Integer)id);
+				lua_setfield(L, -2, "LAST_INSERT_ID");
+			}
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
 
@@ -129,5 +145,7 @@ namespace gluamysql {
 		MYSQL_ROW row = nullptr;
 
 		int data_reference = LUA_REFNIL;
+
+		bool has_retried = false;
 	};
 }

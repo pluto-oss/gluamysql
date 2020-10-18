@@ -4,6 +4,7 @@
 #include "luapreparedstatement.h"
 #include "actions/autocommit.h"
 #include "actions/close.h"
+#include "actions/ping.h"
 
 using namespace gluamysql;
 
@@ -124,6 +125,17 @@ static int rollback(lua_State* L) {
 	return 1;
 }
 
+static int ping(lua_State* L) {
+	auto db = LuaDatabase::Get(L, 1);
+
+	auto promise = std::make_shared<PingAction>(L);
+	db->InsertAction(L, promise);
+
+	promise->Push(L);
+
+	return 1;
+}
+
 // implementation api
 
 static int queuelength(lua_State* L) {
@@ -144,6 +156,7 @@ const _library LuaDatabase::library[] = {
 	{ "autocommit", autocommit },
 	{ "commit", commit },
 	{ "rollback", rollback },
+	{ "ping", ping },
 
 	// internal implementations 
 	{ "IsValid", IsValid },

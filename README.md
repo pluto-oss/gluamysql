@@ -38,6 +38,11 @@ This is intended to be useful for developers wanting to make a wrapper that suit
 
 ---
 
+#### `gluamysql::LuaDatabase`:`ping`() -> `Promise`<>
+**see: `mysql_ping`**
+
+---
+
 #### `gluamysql::LuaDatabase`:`query`(`querystring`) -> `Promise`<`table`>
 **see: `mysql_query`**
 
