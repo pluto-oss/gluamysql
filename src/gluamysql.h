@@ -86,7 +86,7 @@ namespace gluamysql {
 		}
 	}
 
-	static void PushRow(lua_State *L, MYSQL_RES* results, MYSQL_ROW row, unsigned long *lengths, unsigned int fieldcount) {
+	static void PushRow(lua_State *L, MYSQL_RES* results, MYSQL_ROW row, unsigned long *lengths, unsigned int fieldcount, my_bool *is_nulls = nullptr) {
 		lua_newtable(L);
 
 		for (unsigned int i = 0; i < fieldcount; i++) {
@@ -95,7 +95,7 @@ namespace gluamysql {
 			lua_pushlstring(L, field->name, field->name_length);
 
 			// push data from field result set
-			if (lengths[i] == 0) {
+			if (lengths[i] == 0 || is_nulls != nullptr && is_nulls[i]) {
 				lua_pushnil(L);
 			}
 			else {

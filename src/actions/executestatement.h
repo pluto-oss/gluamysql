@@ -240,7 +240,7 @@ namespace gluamysql {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->reference);
 
 			if (action->resultdata) {
-				gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns);
+				gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns, action->resultdata->is_nulls.data());
 			}
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
