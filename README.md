@@ -48,6 +48,8 @@ This is intended to be useful for developers wanting to make a wrapper that suit
 
 Returned table has tables pertaining to how many rows were returned from the query. Data in each row have key as the field name and data as the value.
 
+Each row's data will also have keys AFFECTED_ROWS and LAST_INSERT_ID
+
 ---
 
 #### `gluamysql::LuaDatabase`:`prepare`(`querystring`) -> `Promise`<`gluamysql::LuaPreparedStatement`>

@@ -60,23 +60,22 @@ namespace gluamysql {
 			return mysql_real_query_cont(&action->out, db->instance, db->socket_state);
 		}
 		static bool FinishQuery(QueryAction* action, lua_State* L, LuaDatabase* db) {
-			if (mysql_errno(db->instance) != 0) {
+			if (action->out != 0) {
 				action->Reject(L, db);
 				return true;
 			}
 
-			if (action->out == 0) {
-				action->results = mysql_use_result(db->instance);
+			action->results = mysql_use_result(db->instance);
 
-				if (!action->results) {
-					return true;
+			if (!action->results) {
+				if (mysql_field_count(db->instance) != 0) {
+					action->Reject(L, db);
 				}
-
-				action->current_action = std::make_tuple(StartFetch, ContinueFetch, FinishFetch);
-				return false;
+				return true;
 			}
-			action->Reject(L, db);
-			return true;
+
+			action->current_action = std::make_tuple(StartFetch, ContinueFetch, FinishFetch);
+			return false;
 		}
 
 		static int StartFetch(QueryAction* action, lua_State* L, LuaDatabase* db) {
@@ -87,7 +86,10 @@ namespace gluamysql {
 		}
 		static bool FinishFetch(QueryAction* action, lua_State *L, LuaDatabase *db) {
 			if (action->row == nullptr) {
-				// no more rows? check for error!!!
+				if (mysql_errno(db->instance) != 0) {
+					action->Reject(L, db);
+					return true;
+				}
 
 				action->current_action = std::make_tuple(StartFreeResult, ContinueFreeResult, FinishFreeResult);
 				return false;
@@ -96,12 +98,6 @@ namespace gluamysql {
 			lua_rawgeti(L, LUA_REGISTRYINDEX, action->data_reference);
 
 			gluamysql::PushRow(L, action->results, action->row, mysql_fetch_lengths(action->results), mysql_num_fields(action->results));
-			auto id = mysql_insert_id(db->instance);
-			if (id != 0) {
-				// was inserted
-				lua_pushinteger(L, (lua_Integer)id);
-				lua_setfield(L, -2, "LAST_INSERT_ID");
-			}
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
 
@@ -124,6 +120,18 @@ namespace gluamysql {
 		void Finish(lua_State* L, LuaDatabase* db) override {
 			PushResolve(L);
 			lua_rawgeti(L, LUA_REGISTRYINDEX, data_reference);
+			auto id = mysql_insert_id(db->instance);
+			if (id != 0) {
+				// was inserted
+				lua_pushinteger(L, (lua_Integer)id);
+				lua_setfield(L, -2, "LAST_INSERT_ID");
+			}
+
+			auto affected = mysql_affected_rows(db->instance);
+			if (affected != -1) {
+				lua_pushinteger(L, (lua_Integer)affected);
+				lua_setfield(L, -2, "AFFECTED_ROWS");
+			}
 			lua_call(L, 1, 0);
 		}
 

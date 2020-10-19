@@ -68,6 +68,10 @@ function env.mysql_stmt_execute(stmt, ...)
 	return wait_promise(stmt:execute(...))
 end
 
+function env.mysql_stmt_run(db, query, ...)
+	return wait_promise(mysql_stmt_prepare(db, query):execute(...))
+end
+
 -- entry point
 
 function cmysql(func)

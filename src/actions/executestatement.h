@@ -178,6 +178,10 @@ namespace gluamysql {
 				return true;
 			}
 
+			if (mysql_stmt_result_metadata(action->stmt->stmt) == nullptr) {
+				return true;
+			}
+
 			action->current_action = std::make_tuple(StoreStart, StoreContinue, StoreFinish);
 
 			return false;
@@ -196,16 +200,13 @@ namespace gluamysql {
 				return true;
 			}
 
-			// binds results
-			if (mysql_stmt_result_metadata(action->stmt->stmt) != nullptr) {
-				try {
-					action->resultdata = std::make_shared<ResultData>(action->stmt->stmt);
-				}
-				catch (const char*) {
-					action->Reject(L, db);
-					action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-					return true;
-				}
+			try {
+				action->resultdata = std::make_shared<ResultData>(action->stmt->stmt);
+			}
+			catch (const char*) {
+				action->Reject(L, db);
+				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
+				return true;
 			}
 			action->current_action = std::make_tuple(FetchStart, FetchContinue, FetchFinish);
 
@@ -240,12 +241,6 @@ namespace gluamysql {
 
 			if (action->resultdata) {
 				gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns);
-			}
-			auto id = mysql_insert_id(db->instance);
-			if (id != 0) {
-				// was inserted
-				lua_pushinteger(L, (lua_Integer)id);
-				lua_setfield(L, -2, "LAST_INSERT_ID");
 			}
 
 			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
@@ -284,6 +279,17 @@ namespace gluamysql {
 		void Finish(lua_State* L, LuaDatabase* db) override {
 			PushResolve(L);
 			lua_rawgeti(L, LUA_REGISTRYINDEX, reference);
+			auto id = mysql_insert_id(db->instance);
+			if (id != 0) {
+				// was inserted
+				lua_pushinteger(L, (lua_Integer)id);
+				lua_setfield(L, -2, "LAST_INSERT_ID");
+			}
+			auto affected = mysql_affected_rows(db->instance);
+			if (affected != -1) {
+				lua_pushinteger(L, (lua_Integer)affected);
+				lua_setfield(L, -2, "AFFECTED_ROWS");
+			}
 			lua_call(L, 1, 0);
 		}
 
