@@ -95,7 +95,7 @@ namespace gluamysql {
 			lua_pushlstring(L, field->name, field->name_length);
 
 			// push data from field result set
-			if (lengths[i] == 0 || is_nulls != nullptr && is_nulls[i]) {
+			if (is_nulls != nullptr && is_nulls[i]) {
 				lua_pushnil(L);
 			}
 			else {
