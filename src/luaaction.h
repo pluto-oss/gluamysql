@@ -33,7 +33,8 @@ namespace gluamysql {
 			}
 			PushReject(L);
 			lua_pushstring(L, error);
-			lua_call(L, 1, 0);
+			lua_pushnumber(L, mysql_errno(db->instance));
+			lua_call(L, 2, 0);
 		}
 
 	public:

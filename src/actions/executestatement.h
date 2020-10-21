@@ -6,8 +6,10 @@
 #include "luaactionasync.h"
 #include <string>
 #include <vector>
+#include <deque>
 #include <memory>
 #include <tuple>
+#include <thread>
 
 namespace gluamysql {
 	class ExecuteStatementAction : public LuaAction {
@@ -148,7 +150,7 @@ namespace gluamysql {
 				db->socket_state = db->GetSocketStatus();
 				db->socket_state = std::get<0>(current_action)(this, L, db);
 			}
-			else if (db->CheckStatus()) {
+			else if (in_thread || db->CheckStatus()) {
 				db->socket_state = db->GetSocketStatus();
 				db->socket_state = std::get<1>(current_action)(this, L, db);
 			}
@@ -167,12 +169,37 @@ namespace gluamysql {
 			if ((action->out = mysql_stmt_bind_param(action->stmt->stmt, action->arguments.data())) != 0) {
 				return 0;
 			}
-			return mysql_stmt_execute_start(&action->out, action->stmt->stmt);
+			action->in_thread = true;
+			std::thread([action]() {
+				action->out = mysql_stmt_execute(action->stmt->stmt);
+				if (action->out != 0) {
+					action->thread_finished = true;
+					return;
+				}
+
+				if (mysql_stmt_result_metadata(action->stmt->stmt) == nullptr) {
+					action->thread_finished = true;
+					return;
+				}
+
+				action->out = mysql_stmt_store_result(action->stmt->stmt);
+				if (action->out != 0) {
+					action->thread_finished = true;
+					return;
+				}
+
+				action->thread_finished = true;
+			}).detach();
+			return ExecuteContinue(action, L, db);
 		}
 		static int ExecuteContinue(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_stmt_execute_cont(&action->out, action->stmt->stmt, db->socket_state);
+			if (action->thread_finished)
+				return 0;
+			else
+				return 1;
 		}
 		static bool ExecuteFinish(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
+			action->in_thread = false;
 			if (action->out != 0) {
 				action->Reject(L, db, mysql_stmt_error(action->stmt->stmt));
 				return true;
@@ -182,69 +209,53 @@ namespace gluamysql {
 				return true;
 			}
 
-			action->current_action = std::make_tuple(StoreStart, StoreContinue, StoreFinish);
-
-			return false;
-		}
-
-
-		static int StoreStart(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_stmt_store_result_start(&action->out, action->stmt->stmt);
-		}
-		static int StoreContinue(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_stmt_store_result_cont(&action->out, action->stmt->stmt, db->socket_state);
-		}
-		static bool StoreFinish(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			if (action->out != 0) {
-				action->Reject(L, db, mysql_stmt_error(action->stmt->stmt));
-				return true;
-			}
-
-			try {
-				action->resultdata = std::make_shared<ResultData>(action->stmt->stmt);
-			}
-			catch (const char*) {
-				action->Reject(L, db);
-				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-				return true;
-			}
 			action->current_action = std::make_tuple(FetchStart, FetchContinue, FetchFinish);
 
 			return false;
 		}
 
-
 		static int FetchStart(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_stmt_fetch_start(&action->out, action->stmt->stmt);
+			action->thread_finished = false;
+			action->in_thread = true;
+			std::thread([action]() {
+				while (1) {
+					auto resultdata = std::make_shared<ResultData>(action->stmt->stmt);
+					action->out = mysql_stmt_fetch(action->stmt->stmt);
+					if (action->out != 0) {
+						break;
+					}
+					action->resultdata.push_back(resultdata);
+				}
+				action->thread_finished = true;
+			}).detach();
+			return FetchContinue(action, L, db);
 		}
 		static int FetchContinue(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_stmt_fetch_cont(&action->out, action->stmt->stmt, db->socket_state);
+			if (action->thread_finished)
+				return 0;
+			else
+				return 1;
 		}
 		static bool FetchFinish(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
+			action->in_thread = false;
 			if (action->out == MYSQL_DATA_TRUNCATED) {
 				action->Reject(L, db, "MySQL data truncated");
-				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-				return false;
 			}
 			else if (action->out == MYSQL_NO_DATA) {
-				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-				return false;
+				lua_rawgeti(L, LUA_REGISTRYINDEX, action->reference);
+
+				for (auto& results : action->resultdata) {
+					gluamysql::PushRow(L, results->results, results->row_container->row, results->lengths.data(), results->row_container->columns, results->is_nulls.data());
+					lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+				}
+
+				lua_pop(L, 1);
 			}
-			else if (action->out != 0) {
+			else {
 				action->Reject(L, db, mysql_stmt_error(action->stmt->stmt));
-				action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
-				return false;
 			}
 
-			// more data
-			lua_rawgeti(L, LUA_REGISTRYINDEX, action->reference);
-
-			if (action->resultdata) {
-				gluamysql::PushRow(L, action->resultdata->results, action->resultdata->row_container->row, action->resultdata->lengths.data(), action->resultdata->row_container->columns, action->resultdata->is_nulls.data());
-			}
-
-			lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-			lua_pop(L, 1);
+			action->current_action = std::make_tuple(FreeResultsStart, FreeResultsContinue, FreeResultsFinish);
 
 			return false;
 		}
@@ -252,15 +263,20 @@ namespace gluamysql {
 		
 		static int FreeResultsStart(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
 			action->fetch_out = 0;
-			if (action->resultdata == nullptr) {
+			if (action->resultdata.size() == 0) {
 				return 0;
 			}
-			return mysql_free_result_start(action->resultdata->results);
+			return mysql_free_result_start(action->resultdata[0]->results);
 		}
 		static int FreeResultsContinue(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_free_result_cont(action->resultdata->results, db->socket_state);
+			return mysql_free_result_cont(action->resultdata[0]->results, db->socket_state);
 		}
 		static bool FreeResultsFinish(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
+			if (action->resultdata.size() > 0) {
+				action->resultdata.pop_front();
+				return false; // more to do
+			}
+
 			action->current_action = std::make_tuple(FreeStatementStart, FreeStatementContinue, FreeStatementFinish);
 			return false;
 		}
@@ -304,6 +320,9 @@ namespace gluamysql {
 		Action current_action;
 
 	public:
+		bool in_thread = false;
+		bool thread_finished = false;
+
 		int out = 0;
 		std::string statement;
 		LuaPreparedStatement* stmt;
@@ -315,6 +334,6 @@ namespace gluamysql {
 
 		my_bool fetch_out = 0;
 
-		std::shared_ptr<ResultData> resultdata = nullptr;
+		std::deque<std::shared_ptr<ResultData>> resultdata = std::deque<std::shared_ptr<ResultData>>();
 	};
 }

@@ -4,6 +4,7 @@
 #include "luapromise.h"
 #include "luadatabase.h"
 #include "luapreparedstatement.h"
+#include <cstring>
 
 #define SHUTDOWN_LOADER "return function(override)\n\
 	local function f()\n\

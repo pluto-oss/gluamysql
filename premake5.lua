@@ -12,7 +12,7 @@ workspace "gluamysql"
 		architecture "x86_64"
 
 	project "gluamysql"
-		flags { "NoPCH", "NoImportLib"}
+		flags { "NoPCH", "NoImportLib" }
 
 		symbols "On"
 		vectorextensions "SSE"
@@ -48,16 +48,17 @@ workspace "gluamysql"
 			"_WINDOWS",
 			"NDEBUG",
 		}
-
-		targetprefix "gmsv_"
-		targetextension "_win32.dll"
+		
 		links "mariadbclient"
 
-		if os.target() == "windows" then
+		targetprefix "gmsv_"
+
+		filter "system:windows"
 			links { "ws2_32.lib", "shlwapi.lib" }
-		elseif os.target() == "macosx" or os.target() == "linux" then
-			links { "pthread", "dl" }
-		end
+
+		filter "system:linux"
+			linkoptions { "-Wl,--as-needed" }
+			links { "pthread", "dl", "z" }
 
 		filter "configurations:*64"
 			libdirs "lib64"
@@ -70,3 +71,16 @@ workspace "gluamysql"
 
 		filter "configurations:Release*"
 			optimize "On"
+
+
+		filter { "system:windows", "configurations:*32" }
+			targetextension "_win32.dll"
+		
+		filter { "system:windows", "configurations:*64" }
+			targetextension "_win64.dll"
+		
+		filter { "system:linux", "configurations:*32" }
+			targetextension "_linux32.dll"
+		
+		filter { "system:linux", "configurations:*64" }
+			targetextension "_linux64.dll"
