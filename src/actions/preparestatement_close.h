@@ -19,7 +19,7 @@ namespace gluamysql {
 		}
 
 		void Finish(lua_State* L, LuaDatabase* db) override {
-			// empty?
+			db->stmts.erase(std::remove(db->stmts.begin(), db->stmts.end(), stmt));
 		}
 
 	public:

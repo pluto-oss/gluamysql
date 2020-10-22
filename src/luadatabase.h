@@ -99,6 +99,7 @@ namespace gluamysql {
 	public:
 		MYSQL* instance = nullptr;
 		std::deque<std::shared_ptr<LuaAction>> queue;
+		std::deque<MYSQL_STMT*> stmts;
 
 		std::shared_ptr<LuaAction> current_action = nullptr;
 

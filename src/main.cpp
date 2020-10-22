@@ -54,6 +54,33 @@ static int TickHook(lua_State * L) {
 
 	return 0;
 }
+bool gluamysql::HasCleanedUpAlready = false;
+
+static int ShutdownHook(lua_State* L) {
+	printf("gluamysql::ShutDownHook: finishing remaining queries...\n");
+	while (!TickHookTick(L)) {
+	}
+
+	printf("gluamysql::ShutDownHook: finished! closing databases...\n");
+
+
+	auto& list = gluamysql::LuaDatabase::open_databases;
+
+	for (auto it = list.begin(); it != list.end(); ) {
+		auto db = *it;
+
+		for (auto& stmt : db->stmts) {
+			mysql_stmt_close(stmt);
+		}
+		mysql_close(db->instance);
+		delete db;
+		it = list.erase(it);
+		gluamysql::HasCleanedUpAlready = true;
+	}
+
+	return 0;
+}
+
 
 DLL_EXPORT int gmod13_open(lua_State* L) {
 	gluamysql::PushLibrary(L, gluamysql::library);
@@ -74,15 +101,7 @@ DLL_EXPORT int gmod13_open(lua_State* L) {
 
 	if (luaL_loadbuffer(L, SHUTDOWN_LOADER, strlen(SHUTDOWN_LOADER), "=gluamysql::ShutDownLoader") == 0) {
 		lua_call(L, 0, 1);
-		lua_pushcfunction(L, [](lua_State* L) {
-			printf("gluamysql::ShutDownHook: finishing remaining queries...\n");
-			while (!TickHookTick(L)) {
-			}
-
-			printf("gluamysql::ShutDownHook: finished!\n");
-
-			return 0;
-		});
+		lua_pushcfunction(L, ShutdownHook);
 
 		lua_call(L, 1, 0);
 	}

@@ -20,7 +20,7 @@ static int IsValid(lua_State* L) {
 static int __gc(lua_State* L) {
 	auto db = LuaDatabase::Get(L, 1, true);
 
-	if (!db) {
+	if (!db || gluamysql::HasCleanedUpAlready) {
 		return 0;
 	}
 
@@ -30,6 +30,7 @@ static int __gc(lua_State* L) {
 	db->reference = LUA_NOREF;
 
 	db->gced = true;
+
 
 	db->queue.push_back(std::make_shared<CloseAction>(L));
 

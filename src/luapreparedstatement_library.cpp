@@ -19,9 +19,8 @@ static int __tostring(lua_State* L) {
 static int __gc(lua_State* L) {
 	auto stmt = LuaUserData<LuaPreparedStatement>::GetLuaUserData(L, 1, true);
 
-	if (stmt) {
+	if (stmt && !gluamysql::HasCleanedUpAlready) {
 		stmt->db->InsertAction(L, std::make_shared<PrepareStatementCloseAction>(L, stmt));
-		ClearUserData(L, 1);
 	}
 
 	return 0;

@@ -6,6 +6,7 @@
 #include <deque>
 
 namespace gluamysql {
+	extern bool HasCleanedUpAlready;
 	static void tremove(lua_State* L, int where, int ind) {
 		if (lua_type(L, where) != LUA_TTABLE) {
 			luaL_typerror(L, where, "table");

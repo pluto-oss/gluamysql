@@ -25,6 +25,7 @@ namespace gluamysql {
 				Reject(L, db);
 			}
 			else {
+				db->stmts.push_back(stmt->stmt);
 				PushResolve(L); // 1
 
 				// we don't want to actually hold a reference since it can be gced
