@@ -2,6 +2,7 @@
 #include "lua.hpp"
 #include "mysql.h"
 #include "luapreparedstatement.h"
+#include <algorithm>
 
 namespace gluamysql {
 
