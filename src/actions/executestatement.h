@@ -262,21 +262,28 @@ namespace gluamysql {
 
 		
 		static int FreeResultsStart(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			action->fetch_out = 0;
 			if (action->resultdata.size() == 0) {
 				return 0;
 			}
-			return mysql_free_result_start(action->resultdata[0]->results);
+
+			action->thread_finished = false;
+			action->in_thread = true;
+			std::thread([action]() {
+				while (action->resultdata.size() > 0) {
+					mysql_free_result(action->resultdata[0]->results);
+					action->resultdata.pop_front();
+				}
+				action->thread_finished = true;
+			}).detach();
+			return FetchContinue(action, L, db);
 		}
 		static int FreeResultsContinue(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			return mysql_free_result_cont(action->resultdata[0]->results, db->socket_state);
+			if (action->thread_finished)
+				return 0;
+			else
+				return 1;
 		}
 		static bool FreeResultsFinish(ExecuteStatementAction* action, lua_State* L, LuaDatabase* db) {
-			if (action->resultdata.size() > 0) {
-				action->resultdata.pop_front();
-				return false; // more to do
-			}
-
 			action->current_action = std::make_tuple(FreeStatementStart, FreeStatementContinue, FreeStatementFinish);
 			return false;
 		}
