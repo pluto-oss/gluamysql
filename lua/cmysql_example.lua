@@ -1,3 +1,4 @@
+--DEPRECATED! See oopmysql.lua
 include "cmysql.lua"
 
 local config = {

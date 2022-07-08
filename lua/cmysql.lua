@@ -1,3 +1,5 @@
+--DEPRECATED! See oopmysql.lua
+ErrorNoHalt("[CMYSQL] Deprecated, use oopmysql.lua")
 include "promise.lua"
 require "gluamysql"
 
