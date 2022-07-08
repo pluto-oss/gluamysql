@@ -5,11 +5,33 @@ local unpack = function(t)
 	return unpack(t, 1, t.n)
 end
 
-PROMISE = PROMISE or {
-	__index = {}
+Promise = not isfunction(Promise) and Promise or {
+	__index = PROMISE or {},
 }
+Promise.version = "1.1.0"
 
-local MT = PROMISE.__index
+function Promise.new(run, ...)
+	local promise = setmetatable({
+		func = run,
+		args = {n = select("#", ...), ...},
+		next = {},
+		catch = {},
+		trace = debug.traceback()
+		state = "pending"
+	}, Promise)
+
+	run(function(...)
+		promise:_finish(true, ...)
+	end, function(...)
+		promise:_finish(false, ...)
+	end)
+
+	return promise
+end
+
+setmetatable(Promise, {__call = function(self, ...) return self.new(...) end})
+
+local MT = Promise.__index
 
 function MT:Then(fn)
 	return self:next(fn)
@@ -27,6 +49,21 @@ end
 function MT:catch(fn)
 	self._catch = fn
 	return self:_try()
+end
+
+function MT:wait()
+	local co = coroutine.running()
+	if (not co) then
+		error("wait must be called from coroutine")
+	end
+
+	self:next(function(...)
+		coroutine.resume(co, {result = {n = select("#", ...), ...}})
+	end):catch(function(err)
+		coroutine.resume(co, {error = err})
+	end)
+
+	return coroutine.yield()
 end
 
 function MT:_try()
@@ -61,15 +98,4 @@ function MT:_finish(success, ...)
 	}
 
 	return self:_try()
-end
-
-function Promise(run)
-	local promise = setmetatable({}, PROMISE)
-	run(function(...)
-		promise:_finish(true, ...)
-	end, function(...)
-		promise:_finish(false, ...)
-	end)
-
-	return promise
 end
