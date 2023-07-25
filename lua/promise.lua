@@ -16,7 +16,7 @@ function Promise.new(run, ...)
 		args = {n = select("#", ...), ...},
 		next = {},
 		catch = {},
-		trace = debug.traceback()
+		trace = debug.traceback(),
 		state = "pending"
 	}, Promise)
 
